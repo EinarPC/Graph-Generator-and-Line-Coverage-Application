@@ -1,13 +1,15 @@
+# Import necessary libraries
 import streamlit as st
 import ast
 import json
 
-# Función para guardar los tipos seleccionados en el archivo JSON
+# Function to save the selected data types to a JSON file
 def save_selected_types():
     with open('selected_types.json', 'w') as file:
         json.dump(st.session_state.selected_types, file, indent=4)
     return 'selected_types.json'
 
+# Function to select data types for the main function arguments
 def select_data_types(main_function):
     data_types = ['int', 'float', 'str', 'bool', 'list', 'tuple', 'dict']
     file = ''
@@ -16,7 +18,7 @@ def select_data_types(main_function):
         st.session_state.selected_types = {}
 
     if main_function:
-        # Obtener los argumentos de la "Función Principal" utilizando el AST
+        # Get the arguments of the "Main Function" using the AST
         main_function_args = None
         for node in ast.walk(st.session_state.ast):
             if isinstance(node, ast.FunctionDef) and node.name == main_function:
@@ -24,10 +26,10 @@ def select_data_types(main_function):
                 break
 
         if main_function_args:
-            # Obtener el diccionario de tipos de datos para la "Función Principal"
+            # Get the dictionary of data types for the "Main Function"
             main_function_selected_types = st.session_state.selected_types.get(main_function, {})
 
-            # Mostrar el formulario para los select boxes y el botón
+            # Show the form for the select boxes and the button
             with st.form(key="main_function_form"):
                 st.write(f"Select data types for arguments of the Main Function {main_function}:")
                 for argument in main_function_args:
@@ -42,23 +44,23 @@ def select_data_types(main_function):
                 submitted = st.form_submit_button("SAVE DATA TYPES")
 
                 if submitted:
-                    # Actualizar el diccionario de tipos de datos para la "Función Principal" en el estado persistente
+                    # Update the data type dictionary for the "Main Function" in the persistent state
                     st.session_state.selected_types[main_function] = main_function_selected_types
 
-                    # Guardar los tipos seleccionados en el archivo JSON
+                    # Save the selected types to the JSON file
                     file = save_selected_types()
 
         else:
-            st.error("No se encontraron los argumentos de la 'Función Principal'.")
+            st.error("'Main Function' arguments not found.")
     else:
-            st.error("No se encontró una 'Función Principal' en el código fuente.")
+            st.error("No 'Main Function' was found in the source code.")
 
-    # Verificar si hay tipos seleccionados para la "Función Principal"
+    # Check if there are types selected for the "Main Function"
     if main_function in st.session_state.selected_types:
-        # Obtener los tipos de datos seleccionados para la "Función Principal"
+        # Get the data types selected for the "Main Function"
         main_function_selected_types = st.session_state.selected_types[main_function]
 
-        # Mostrar los tipos de datos seleccionados
+        # Show the selected data types
         st.success(f"Data Types of {main_function} selected successfully")
         with st.expander("See selected data types."):
             for argument, data_type in main_function_selected_types.items():
@@ -72,8 +74,10 @@ def main():
     st.set_page_config(page_title = "Data Types", page_icon = "🔢")
     st.title("Defining Data Types")
 
+    # Call the function to select data types and get file_types and main_arguments
     file_types, main_arguments = select_data_types(st.session_state.main_function)
 
+    # Set session state variables if not set
     if "file_types" not in st.session_state:
         st.session_state.file_types = file_types
     if "main_arguments" not in st.session_state:

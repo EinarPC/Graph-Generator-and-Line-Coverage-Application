@@ -1,14 +1,16 @@
+# Import necessary libraries
 import streamlit as st
 import json
 import re
 import csv
 from staticfg import CFGBuilder
 
-# Function to generate and display the General CFG of the entire program
+# Function to generate and display the Control Flow Graph (CFG) of the entire program
 def generate_cfg_general(file_name):
     cfg = CFGBuilder().build_from_file(file_name, file_name)
     cfg.build_visual('source_CFG', 'png')
 
+# Function to add line counts and instrumentation to track execution paths
 def add_line_counts(file_content):
     lines = file_content.splitlines()
     modified_lines = []
@@ -22,9 +24,9 @@ def add_line_counts(file_content):
             modified_lines.append(f"    path_list.append(line_count)")
             line_count += 1
         elif line.strip() and re.match(r'^\s+', line):
-            tabs = re.match(r'^\s+', line).group()  # Obtener los tabs iniciales de la línea
-            num_spaces = len(tabs) * 4  # Calcular la cantidad de espacios equivalentes a los tabs
-            spaces = " " * num_spaces  # Crear la cadena de espacios
+            tabs = re.match(r'^\s+', line).group()
+            num_spaces = len(tabs) * 4
+            spaces = " " * num_spaces
             if line.strip().startswith("return") or line.strip().startswith("break") or line.strip().startswith("continue") or line.strip().startswith("pass") or line.strip().startswith("yield"):
                 modified_lines.append(f"{spaces}line_count = {line_count}")
                 modified_lines.append(f"{spaces}path_list.append(line_count)")
@@ -45,6 +47,7 @@ def add_line_counts(file_content):
 
     return "\n".join(modified_lines), line_count
 
+# Function to number lines in the code for visualization
 def numbers_file(file):
     lines = file.splitlines()
     line_count = 1
@@ -56,9 +59,9 @@ def numbers_file(file):
             numbered_lines.append(f"    {line_count}")
             line_count += 1
         elif line.strip() and re.match(r'^\s+', line):
-            tabs = re.match(r'^\s+', line).group()  # Obtener los tabs iniciales de la línea
-            num_spaces = len(tabs) * 4  # Calcular la cantidad de espacios equivalentes a los tabs
-            spaces = " " * num_spaces  # Crear la cadena de espacios
+            tabs = re.match(r'^\s+', line).group()
+            num_spaces = len(tabs) * 4
+            spaces = " " * num_spaces
             if line.strip().startswith("return") or line.strip().startswith("break") or line.strip().startswith("continue") or line.strip().startswith("pass"):
                 numbered_lines.append(f"{spaces}{line_count}")
                 numbered_lines.append(f"{spaces}{line.strip()}")
@@ -76,6 +79,7 @@ def numbers_file(file):
 
     return "\n".join(numbered_lines)
 
+# Function to generate test calls based on test cases
 def generate_test_calls(main_function_name, test_cases):
     calls = []
     for test_case_data in test_cases.values():
@@ -84,6 +88,7 @@ def generate_test_calls(main_function_name, test_cases):
         calls.append(call)
     return calls
 
+# Function to write generated test calls to a file
 def write_test_calls_to_file(file_name, calls):
     delimeter = f'''"//"'''
 
@@ -94,6 +99,7 @@ def write_test_calls_to_file(file_name, calls):
             file.write(f"{variable_name} = {call}\n")
             file.write(f"path_list.append({delimeter})\n")
 
+# Function to generate code (add text) for saving test results in JSON
 def generate_save_results(calls):
     num_calls = len(calls)
 
@@ -136,6 +142,7 @@ with open('testcases_paths.json', 'w') as file:
 
     return save_results
 
+# Function to calculate line coverage based on executed paths
 def line_coverage(json_file_path, total_lines):
     with open(json_file_path) as json_file:
         data = json.load(json_file)
@@ -150,6 +157,7 @@ def line_coverage(json_file_path, total_lines):
     with open('line_coverages.json', 'w') as output_file:
         json.dump(coverages, output_file, indent=4)
 
+# Function to combine and save data to a CSV report
 def combine_and_save_to_csv(test_cases_file, results_file, paths_file, coverage_file):
     with open(test_cases_file) as test_cases_json_file:
         test_cases_data = json.load(test_cases_json_file)
@@ -172,7 +180,7 @@ def combine_and_save_to_csv(test_cases_file, results_file, paths_file, coverage_
         for test_case_key, test_case_data in test_cases_data.items():
             result_key = f'x_{test_case_key}'
             result = results_data.get(result_key, [])
-            path = paths_data[int(test_case_key) - 1]  # Convertir la clave a entero y restar 1 para obtener el índice correcto en la lista
+            path = paths_data[int(test_case_key) - 1]
             coverage = coverage_data[int(test_case_key) - 1] if int(test_case_key) - 1 < len(coverage_data) else 0.0
 
             writer.writerow({
@@ -188,12 +196,15 @@ def main():
     st.set_page_config(page_title="Test Cases Analysis", page_icon="🗃️")
     st.title("Execution and Analysis of Test Cases")
 
+    # Load test cases from JSON file
     with open("test_cases.json", "r") as test_cases_file:
         test_cases = json.load(test_cases_file)
 
+    # Generate test calls based on test cases
     main_function_name = st.session_state.main_function
     calls = generate_test_calls(main_function_name, test_cases)
-    
+
+    # Add line counts and instrumentation to the code content
     numbered_file, total_lines = add_line_counts(st.session_state.file_content)
     with open('uploaded_file.py', 'w') as file:
         file.seek(0)
@@ -202,6 +213,7 @@ def main():
         file.write(numbered_file)
         file.close()
 
+    # Generate a version of the code with line numbers for visualization
     file_with_numbers = numbers_file(st.session_state.file_content)
 
     with open('numbers_graph.py', 'w') as n_file:
@@ -210,24 +222,25 @@ def main():
 
     # Execute the test cases and save the results
     if st.button("Execute Test Cases"):
+        # Write test calls to the source file
         write_test_calls_to_file('uploaded_file.py',calls)
 
-        # Generar el contenido de save_results con el número correcto de x_s
+        # Generate the content for saving results and paths
         save_results = generate_save_results(calls)
 
-        # Agregar el contenido al archivo fuente
+        # Append the content to the source file
         with open('uploaded_file.py', 'a') as file:
             file.write(save_results)
 
-        # Ejecutar el archivo fuente para obtener los resultados
+        # Execute the source file to obtain results
         exec(open('uploaded_file.py').read(), globals())
 
+        # Calculate line coverage and generate CFG
         line_coverage('testcases_paths.json',total_lines)
-
         generate_cfg_general('numbers_graph.py')
 
+        # Success message and CSV report generation
         st.success("Test Cases have been successfully executed.")
-
         combine_and_save_to_csv('test_cases.json', 'test_results.json', 'testcases_paths.json', 'line_coverages.json')
 
 # Execute application
